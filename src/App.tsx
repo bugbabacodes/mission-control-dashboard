@@ -18,12 +18,7 @@ interface Activity {
   status: 'success' | 'error' | 'pending'
 }
 
-interface WebSocketMessage {
-  type: string
-  data?: any
-  logs?: string[]
-  message?: string
-}
+// Data interfaces removed - now using static JSON data
 
 function StatusBadge({ status }: { status: Agent['status'] }) {
   const colors = {
@@ -141,118 +136,105 @@ function LogsModal({ agentId, logs, onClose }: {
 function App() {
   const [agents, setAgents] = useState<Agent[]>([])
   const [activities, setActivities] = useState<Activity[]>([])
-  const [ws, setWs] = useState<WebSocket | null>(null)
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting')
+  const [loading, setLoading] = useState(true)
   const [logsAgentId, setLogsAgentId] = useState<string | null>(null)
   const [agentLogs, setAgentLogs] = useState<string[]>([])
 
-  // Get WebSocket URL from environment variable or fallback
-  const WS_URL = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8080'
-
-  // WebSocket connection
+  // Fetch live data from API
   useEffect(() => {
-    const websocket = new WebSocket(WS_URL)
+    // Load from live API
+    const API_URL = 'https://mission-control-pied-five.vercel.app/api/data'
     
-    websocket.onopen = () => {
-      setConnectionStatus('connected')
-      console.log('Connected to agent orchestrator')
-    }
-    
-    websocket.onclose = () => {
-      setConnectionStatus('disconnected')
-      console.log('Disconnected from agent orchestrator')
-      // Attempt to reconnect after 5 seconds
-      setTimeout(() => {
-        setConnectionStatus('connecting')
-      }, 5000)
-    }
-    
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error)
-      setConnectionStatus('disconnected')
-    }
-    
-    websocket.onmessage = (event) => {
+    const fetchData = async () => {
       try {
-        const message: WebSocketMessage = JSON.parse(event.data)
-        handleWebSocketMessage(message)
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
+        const response = await fetch(API_URL)
+        const data = await response.json()
+        setAgents(data.agents)
+        setActivities(data.activities)
+        setLoading(false)
+      } catch (err) {
+        console.error('Error loading data:', err)
+        // Fallback to static JSON
+        fetch('/data.json')
+          .then(res => res.json())
+          .then(data => {
+            setAgents(data.agents)
+            setActivities(data.activities)
+            setLoading(false)
+          })
+          .catch(() => setLoading(false))
       }
     }
     
-    setWs(websocket)
+    fetchData()
     
-    return () => {
-      websocket.close()
-    }
-  }, [WS_URL])
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchData, 30000)
+    return () => clearInterval(interval)
+  }, [])
 
-  // Handle WebSocket messages
-  const handleWebSocketMessage = (message: WebSocketMessage) => {
-    switch (message.type) {
-      case 'initial_state':
-        setAgents(message.data.agents)
-        break
-        
-      case 'agent_status_update':
-        setAgents(prev => {
-          const updated = prev.map(agent => 
-            agent.id === message.data.id ? message.data : agent
-          )
-          // If agent doesn't exist, add it
-          if (!updated.find(a => a.id === message.data.id)) {
-            updated.push(message.data)
-          }
-          return updated
-        })
-        break
-        
-      case 'activity_update':
-        setActivities(prev => {
-          const updated = [message.data, ...prev]
-          // Keep only last 20 activities
-          return updated.slice(0, 20)
-        })
-        break
-        
-      case 'agent_logs':
-        setAgentLogs(message.logs || [])
-        break
-        
-      case 'error':
-        console.error('Server error:', message.message)
-        break
+  const API_BASE = 'https://mission-control-pied-five.vercel.app'
+
+  // Control functions - wired to backend
+  const startAgent = async (agentId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, action: 'start' })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAgents(prev => prev.map(a => 
+          a.id === agentId ? { ...a, status: 'running' as const, lastActivity: new Date().toISOString() } : a
+        ))
+        setActivities(prev => [{
+          id: Date.now().toString(),
+          agent: agents.find(a => a.id === agentId)?.name || agentId,
+          action: 'Agent started',
+          timestamp: new Date().toISOString(),
+          status: 'success'
+        }, ...prev])
+      }
+    } catch (err) {
+      console.error('Failed to start agent:', err)
     }
   }
 
-  // Control functions
-  const startAgent = (agentId: string) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'start_agent',
-        agentId
-      }))
+  const stopAgent = async (agentId: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/control`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ agentId, action: 'stop' })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAgents(prev => prev.map(a => 
+          a.id === agentId ? { ...a, status: 'stopped' as const } : a
+        ))
+        setActivities(prev => [{
+          id: Date.now().toString(),
+          agent: agents.find(a => a.id === agentId)?.name || agentId,
+          action: 'Agent stopped',
+          timestamp: new Date().toISOString(),
+          status: 'pending'
+        }, ...prev])
+      }
+    } catch (err) {
+      console.error('Failed to stop agent:', err)
     }
   }
 
-  const stopAgent = (agentId: string) => {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'stop_agent',
-        agentId
-      }))
-    }
-  }
-
-  const getLogs = (agentId: string) => {
+  const getLogs = async (agentId: string) => {
     setLogsAgentId(agentId)
-    setAgentLogs([])
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({
-        type: 'get_logs',
-        agentId
-      }))
+    setAgentLogs(['Loading logs...'])
+    try {
+      const res = await fetch(`${API_BASE}/api/logs?agentId=${agentId}`)
+      const data = await res.json()
+      setAgentLogs(data.logs || ['No logs available'])
+    } catch (err) {
+      setAgentLogs(['Failed to fetch logs'])
     }
   }
 
@@ -272,12 +254,10 @@ function App() {
             <div className="flex items-center gap-3 sm:gap-4">
               <div className="flex items-center gap-2">
                 <div className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full ${
-                  connectionStatus === 'connected' ? 'bg-green-500' :
-                  connectionStatus === 'connecting' ? 'bg-yellow-500' : 'bg-red-500'
+                  loading ? 'bg-yellow-500' : 'bg-green-500'
                 }`}></div>
                 <span className="text-xs sm:text-sm text-gray-600">
-                  {connectionStatus === 'connected' ? 'Connected' :
-                   connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+                  {loading ? 'Loading...' : 'Live Data'}
                 </span>
               </div>
               <div className="text-right">
@@ -311,7 +291,7 @@ function App() {
           <div className="bg-white rounded-lg shadow p-3 sm:p-4">
             <p className="text-xs sm:text-sm text-gray-600">System Status</p>
             <p className="text-xl sm:text-2xl font-bold text-green-600">
-              {connectionStatus === 'connected' ? 'Healthy' : 'Disconnected'}
+              {loading ? 'Loading...' : 'Healthy'}
             </p>
           </div>
         </div>

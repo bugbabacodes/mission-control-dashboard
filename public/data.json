@@ -1,0 +1,109 @@
+{
+  "agents": [
+    {
+      "id": "dexter",
+      "name": "Dexter",
+      "role": "Research Analyst",
+      "status": "running",
+      "lastActivity": "2026-02-02T19:20:58.600Z",
+      "tasks": 1,
+      "specialty": "Competitive analysis, UX testing, research documentation"
+    },
+    {
+      "id": "blossom",
+      "name": "Blossom",
+      "role": "Content Creator",
+      "status": "idle",
+      "lastActivity": null,
+      "tasks": 1,
+      "specialty": "LinkedIn posts, Twitter threads, blog content, copywriting"
+    },
+    {
+      "id": "samurai_jack",
+      "name": "Samurai Jack",
+      "role": "Code Architect",
+      "status": "idle",
+      "lastActivity": null,
+      "tasks": 1,
+      "specialty": "Clean code, testing, deployment, automation scripts"
+    },
+    {
+      "id": "johnny_bravo",
+      "name": "Johnny Bravo",
+      "role": "Business Development",
+      "status": "idle",
+      "lastActivity": null,
+      "tasks": 1,
+      "specialty": "Lead generation, outreach, networking, relationship building"
+    },
+    {
+      "id": "courage",
+      "name": "Courage",
+      "role": "Client Success",
+      "status": "idle",
+      "lastActivity": null,
+      "tasks": 1,
+      "specialty": "Email management, client communication, support, calendar coordination"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "task_dexter_research_template",
+      "title": "Create Research Report Template",
+      "assignee": "dexter",
+      "status": "inbox",
+      "priority": "medium"
+    },
+    {
+      "id": "task_blossom_content_calendar",
+      "title": "Q1 Content Calendar Planning",
+      "assignee": "blossom",
+      "status": "inbox",
+      "priority": "medium"
+    },
+    {
+      "id": "task_samurai_code_review",
+      "title": "Code Review: Mission Control Scripts",
+      "assignee": "samurai_jack",
+      "status": "inbox",
+      "priority": "medium"
+    },
+    {
+      "id": "task_johnny_lead_list",
+      "title": "Build Target Lead List",
+      "assignee": "johnny_bravo",
+      "status": "inbox",
+      "priority": "high"
+    },
+    {
+      "id": "task_courage_email_setup",
+      "title": "Setup Email Monitoring Workflow",
+      "assignee": "courage",
+      "status": "inbox",
+      "priority": "medium"
+    }
+  ],
+  "activities": [
+    {
+      "id": "activity_init_001",
+      "agent": "System",
+      "action": "Mission Control database initialized with 5 agents",
+      "timestamp": "2026-02-03T00:38:00.000Z",
+      "status": "success"
+    },
+    {
+      "id": "activity_init_002",
+      "agent": "System",
+      "action": "Created 6 initial tasks for agent squad",
+      "timestamp": "2026-02-03T00:38:00.000Z",
+      "status": "success"
+    },
+    {
+      "id": "activity_setup_complete",
+      "agent": "System",
+      "action": "Mission Control setup completed — all agents operational",
+      "timestamp": "2026-02-03T00:40:00.000Z",
+      "status": "success"
+    }
+  ]
+}
